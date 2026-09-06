@@ -1,0 +1,48 @@
+// ------------------------------------------------------------------
+// Catalog: categories & badges — the "taxonomy" side of the product
+// catalog, kept separate from product.prisma since these are managed
+// independently (e.g. from a merchandising/admin screen).
+// ------------------------------------------------------------------
+
+// Self-referential tree: top-level categories have parentId = null,
+// subcategories point back at their parent (e.g. "Seeds" -> "Vegetable Seeds").
+model ProductCategory {
+  id       String            @id @default(uuid())
+  parentId String?
+  parent   ProductCategory?  @relation("CategoryToSubcategory", fields: [parentId], references: [id], onDelete: SetNull)
+  children ProductCategory[] @relation("CategoryToSubcategory")
+
+  title    String
+  subtitle String?
+  slug     String  @unique
+  imageUrl String?
+
+  isActive Boolean @default(true)
+  position Int     @default(0)
+
+  products Product[] // Product model lives in product.prisma
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentId])
+}
+
+// Badges are a managed table (e.g. "Featured", "Trending", "Bestseller")
+// instead of a fixed enum, so new badges can be added without a migration.
+// A product can carry more than one badge; a badge can be applied to many products.
+model ProductBadge {
+  id    String  @id @default(uuid())
+  name  String  @unique
+  slug  String  @unique
+  color String? // optional accent color for the badge pill, e.g. "#16a34a"
+  icon  String? // optional icon name/url
+
+  isActive Boolean @default(true)
+  position Int     @default(0)
+
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

@@ -1,0 +1,63 @@
+// ==================================================================
+// ADMIN ACCOUNT — internal staff/back-office login (email + password)
+// Fully independent of customer.prisma / partner.prisma.
+// ==================================================================
+
+model AdminAccount {
+  id            Int       @id
+  email         String    @unique
+  emailVerified DateTime?
+  password      String? // hashed; null if this admin only signs in via OAuth/SSO
+
+  name       String
+  avatarUrl  String?
+  department String? // e.g. "Catalog", "Support", "Finance"
+
+  isSuperAdmin Boolean @default(false)
+  permissions  Json    @default("[]") // MySQL-compatible JSON array of permission keys
+
+  oauthAccounts    AdminOAuthAccount[]
+  sessions         AdminSession[]
+  productApprovals ProductApproval[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// OAuth link table for admins (e.g. Google Workspace SSO), scoped to AdminAccount only.
+model AdminOAuthAccount {
+  id                String  @id @default(uuid())
+  adminId           Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  admin AdminAccount @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model AdminSession {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  adminId      Int
+  expires      DateTime
+
+  admin AdminAccount @relation(fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+// Email verification / magic-link token store, scoped to admins only.
+model AdminVerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

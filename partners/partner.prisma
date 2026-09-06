@@ -1,0 +1,276 @@
+// ==================================================================
+// PARTNER ACCOUNT — seller/vendor login (email + password only)
+// Fully independent of customer.prisma / admin.prisma.
+// ==================================================================
+
+enum PartnerBusinessType {
+  individual
+  proprietorship
+  partnership
+  private_limited
+  llp
+  other
+}
+
+enum PartnerStatus {
+  pending
+  approved
+  suspended
+  rejected
+  blocked
+  deleted
+}
+
+enum KycStatus {
+  pending
+  verified
+  rejected
+}
+
+enum PartnerVerificationTokenType {
+  email_otp
+  email_verification
+  password_reset
+}
+
+// ------------------------------------------------------------------
+// CORE ACCOUNT — auth identity only. Keep this lean and fast to query.
+// ------------------------------------------------------------------
+model PartnerAccount {
+  id            BigInt        @id
+  email         String        @unique
+  emailVerified DateTime?
+  password      String
+  status        PartnerStatus @default(pending)
+  approvedAt    DateTime?
+
+  profile     PartnerProfile?
+  business    PartnerBusinessDetails?
+  address     PartnerAddress?
+  bankDetails PartnerBankDetails?
+  kyc         PartnerKyc?
+  security    PartnerSecurity?
+
+  fingerprints     PartnerFingerprint[]
+  loginActivities  PartnerLoginActivity[]
+  signupActivities PartnerSignupActivity[]
+  products         Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+// ------------------------------------------------------------------
+// SECURITY — auth-adjacent but sensitive. Isolated so it's easy to
+// audit/restrict access separately from public-facing profile data.
+// ------------------------------------------------------------------
+model PartnerSecurity {
+  id            String    @id @default(uuid())
+  partnerId     BigInt    @unique
+  phone         String?   @unique
+  phoneVerified DateTime?
+
+  twoFactorEnabled    Boolean   @default(false)
+  twoFactorSecret     String? // encrypt at rest
+  twoFactorVerifiedAt DateTime?
+
+  backupCodes PartnerBackupCode[]
+
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
+  partner PartnerAccount @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+}
+
+model PartnerBackupCode {
+  id         String    @id @default(uuid())
+  securityId String
+  codeHash   String // hash it, never store plain
+  used       Boolean   @default(false)
+  usedAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  security PartnerSecurity @relation(fields: [securityId], references: [id], onDelete: Cascade)
+
+  @@index([securityId])
+}
+
+// ------------------------------------------------------------------
+// PROFILE — public-facing store identity
+// ------------------------------------------------------------------
+model PartnerProfile {
+  id               String  @id @default(uuid())
+  partnerId        BigInt  @unique
+  storeName        String
+  storeSlug        String  @unique
+  storeDescription String? @db.Text
+  storeLogoUrl     String?
+  storeBannerUrl   String?
+  ownerName        String
+  supportEmail     String?
+  supportPhone     String?
+
+  partner PartnerAccount @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+}
+
+// ------------------------------------------------------------------
+// BUSINESS DETAILS — legal/registration info
+// ------------------------------------------------------------------
+model PartnerBusinessDetails {
+  id           String              @id @default(uuid())
+  partnerId    BigInt              @unique
+  businessType PartnerBusinessType @default(individual)
+  gstNumber    String?
+  panNumber    String?
+
+  partner PartnerAccount @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+}
+
+// ------------------------------------------------------------------
+// ADDRESS
+// ------------------------------------------------------------------
+model PartnerAddress {
+  id           String  @id @default(uuid())
+  partnerId    BigInt  @unique
+  addressLine1 String?
+  addressLine2 String?
+  city         String?
+  state        String?
+  postalCode   String?
+  country      String  @default("IN")
+
+  partner PartnerAccount @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+}
+
+// ------------------------------------------------------------------
+// BANK DETAILS — sensitive financial info, isolated table
+// ------------------------------------------------------------------
+model PartnerBankDetails {
+  id                String  @id @default(uuid())
+  partnerId         BigInt  @unique
+  bankAccountHolder String?
+  bankAccountNumber String? // consider encrypting at rest
+  bankIfsc          String?
+  bankName          String?
+  upiId             String?
+
+  partner PartnerAccount @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+}
+
+// ------------------------------------------------------------------
+// KYC — verification documents & status
+// ------------------------------------------------------------------
+model PartnerKyc {
+  id             String    @id @default(uuid())
+  partnerId      BigInt    @unique
+  kycDocumentUrl String?
+  kycStatus      KycStatus @default(pending)
+  reviewedAt     DateTime?
+  commissionRate Decimal   @default(0) @db.Decimal(5, 2)
+
+  partner PartnerAccount @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@index([kycStatus])
+}
+
+// Email verification / password-reset token store, scoped to partners only.
+model PartnerVerificationToken {
+  identifier String
+  token      String                       @unique
+  type       PartnerVerificationTokenType @default(email_otp)
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@index([identifier, type])
+}
+
+model PartnerFingerprint {
+  id              String    @id @default(uuid())
+  partnerId       BigInt
+  fingerprint     String    @db.VarChar(255)
+  userAgent       String?   @db.VarChar(500)
+  ipAddress       String?   @db.VarChar(45)
+  forwardedFor    String?   @db.VarChar(500)
+  browser         String?   @db.VarChar(80)
+  operatingSystem String?   @db.VarChar(80)
+  deviceType      String?   @db.VarChar(30)
+  language        String?   @db.VarChar(20)
+  timezone        String?   @db.VarChar(80)
+  countryCode     String?   @db.VarChar(10)
+  country         String?   @db.VarChar(80)
+  region          String?   @db.VarChar(120)
+  city            String?   @db.VarChar(120)
+  latitude        Decimal?  @db.Decimal(9, 6)
+  longitude       Decimal?  @db.Decimal(9, 6)
+  locationSource  String?   @db.VarChar(40)
+  isTrusted       Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  revokedAt       DateTime?
+  revokedReason   String?   @db.VarChar(255)
+  firstSeenAt     DateTime  @default(now())
+  lastSeenAt      DateTime  @updatedAt
+  createdAt       DateTime  @default(now())
+
+  partner PartnerAccount @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  @@unique([partnerId, fingerprint])
+  @@index([partnerId])
+  @@index([ipAddress])
+  @@index([isActive])
+}
+
+model PartnerLoginActivity {
+  id              String   @id @default(uuid())
+  partnerId       BigInt?
+  email           String?
+  fingerprint     String?  @db.VarChar(255)
+  status          String   @db.VarChar(30)
+  reason          String?  @db.VarChar(120)
+  userAgent       String?  @db.VarChar(500)
+  ipAddress       String?  @db.VarChar(45)
+  forwardedFor    String?  @db.VarChar(500)
+  browser         String?  @db.VarChar(80)
+  operatingSystem String?  @db.VarChar(80)
+  deviceType      String?  @db.VarChar(30)
+  language        String?  @db.VarChar(20)
+  timezone        String?  @db.VarChar(80)
+  countryCode     String?  @db.VarChar(10)
+  country         String?  @db.VarChar(80)
+  region          String?  @db.VarChar(120)
+  city            String?  @db.VarChar(120)
+  createdAt       DateTime @default(now())
+
+  partner PartnerAccount? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+
+  @@index([partnerId, createdAt])
+  @@index([email, createdAt])
+}
+
+model PartnerSignupActivity {
+  id              String   @id @default(uuid())
+  partnerId       BigInt?
+  email           String
+  fingerprint     String?  @db.VarChar(255)
+  status          String   @db.VarChar(30)
+  reason          String?  @db.VarChar(120)
+  userAgent       String?  @db.VarChar(500)
+  ipAddress       String?  @db.VarChar(45)
+  forwardedFor    String?  @db.VarChar(500)
+  browser         String?  @db.VarChar(80)
+  operatingSystem String?  @db.VarChar(80)
+  deviceType      String?  @db.VarChar(30)
+  language        String?  @db.VarChar(20)
+  timezone        String?  @db.VarChar(80)
+  countryCode     String?  @db.VarChar(10)
+  country         String?  @db.VarChar(80)
+  region          String?  @db.VarChar(120)
+  city            String?  @db.VarChar(120)
+  createdAt       DateTime @default(now())
+
+  partner PartnerAccount? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+
+  @@index([partnerId, createdAt])
+  @@index([email, createdAt])
+}

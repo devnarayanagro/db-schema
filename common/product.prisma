@@ -1,0 +1,217 @@
+// ------------------------------------------------------------------
+// Product & related — the core listing tables driven by the product
+// form (basic info, agri/compliance, pricing tiers, media).
+// ------------------------------------------------------------------
+
+enum ProductStatus {
+  draft
+  active
+  out_of_stock
+  deleted
+}
+
+enum ApprovalStatus {
+  pending
+  approved
+  rejected
+}
+
+enum GstTreatment {
+  included
+  excluded
+}
+
+enum UnitType {
+  weight
+  volume
+  length
+  count
+}
+
+// Active/inactive toggle for an individual pricing tier — matches the
+// form's per-tier Status Select ("active" | "inactive") 1:1.
+enum TierStatus {
+  active
+  inactive
+}
+
+// Flattened list of all unit codes across unit types (unitsByType in the form)
+enum ProductUnit {
+  // weight
+  w_kg
+  w_gram
+  w_mg
+  w_tonne
+  w_quintal
+  w_lb
+  w_oz
+  // volume
+  v_liter
+  v_ml
+  v_gallon
+  v_litre
+  v_cup
+  v_bottle
+  v_can
+  // length
+  l_meter
+  l_cm
+  l_mm
+  l_inch
+  l_foot
+  l_km
+  // count
+  c_piece
+  c_bag
+  c_bottle
+  c_packet
+  c_bundle
+  c_box
+  c_pack
+  c_bunch
+  c_dozen
+  c_carton
+  c_crate
+  c_tray
+  c_set
+  c_dose
+}
+
+model Product {
+  id             String          @id @default(uuid())
+  name           String
+  slug           String          @unique
+  category       ProductCategory @relation(fields: [categoryId], references: [id]) // from catalog.prisma
+  categoryId     String
+  partner        PartnerAccount? @relation(fields: [partnerId], references: [id]) // from partner.prisma
+  partnerId      BigInt? // null = listed by admin/platform directly, not a partner
+  subcategory    String?
+  brand          String?
+  sku            String?         @unique
+  hsnCode        String?
+  status         ProductStatus   @default(draft)
+  approvalStatus ApprovalStatus  @default(pending)
+  badges         ProductBadge[] // from catalog.prisma — form UI is single-select but relation supports many
+
+  unitType UnitType    @default(weight)
+  unit     ProductUnit @default(w_kg)
+
+  description           String? @db.Text
+  descriptionEnabled    Boolean @default(true)
+  specification         String? @db.Text
+  specificationEnabled  Boolean @default(false)
+  additionalInformation String? @db.Text
+  additionalInfoEnabled Boolean @default(false)
+  storageInformation    String? @db.Text
+  storageInfoEnabled    Boolean @default(false)
+  usageInformation      String? @db.Text
+  usageInfoEnabled      Boolean @default(false)
+  returnInformation     String? @db.Text
+  returnInfoEnabled     Boolean @default(true)
+
+  highlights Json @default("[]")
+
+  originLocation         String?
+  harvestDate            DateTime?
+  packedDate             DateTime?
+  expiryDate             DateTime?
+  shelfLife              String?
+  organicCertification   String?
+  gstRate                Decimal?     @db.Decimal(5, 2)
+  gstIncluded            GstTreatment @default(included)
+  chemicalUsage          String?      @db.Text
+  nutritionalInfo        String?      @db.Text
+  certificationUploadUrl String?
+
+  deliveryStandard Boolean @default(true)
+  deliveryExpress  Boolean @default(false)
+  deliveryCod      Boolean @default(true)
+  returnPolicyDays Int     @default(7)
+
+  metaTitle       String?
+  metaDescription String? @db.VarChar(160)
+  metaKeywords    Json    @default("[]") // form stores as comma-separated string; split/join on save/load
+
+  pricingTiers PricingTier[]
+  images       ProductImage[]
+  video        ProductVideo?
+  approvals    ProductApproval[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+  @@index([partnerId])
+  @@index([status])
+}
+
+model ProductApproval {
+  id           String         @id @default(uuid())
+  productId    String
+  status       ApprovalStatus
+  reviewedById Int?
+  reviewNote   String?        @db.Text
+  reviewedAt   DateTime       @default(now())
+  createdAt    DateTime       @default(now())
+
+  product    Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  reviewedBy AdminAccount? @relation(fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([productId, status])
+  @@index([reviewedById])
+}
+
+// One row per pack-size/tier (e.g. 1kg bag vs 25kg sack), each with
+// its own price, stock, MOQ and shipping dimensions.
+model PricingTier {
+  id        String  @id @default(uuid())
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+
+  unit      ProductUnit
+  unitValue Int         @default(1)
+
+  maximumRetailPrice Decimal @db.Decimal(10, 2)
+  sellingPrice       Decimal @db.Decimal(10, 2)
+  discountPercentage Int     @default(0) // derived from MRP vs selling price, stored for convenience
+
+  status        TierStatus @default(active)
+  stockQuantity Int        @default(0)
+  moq           Int        @default(1)
+
+  shippingWeight Decimal? @db.Decimal(10, 3)
+  shippingLength Decimal? @db.Decimal(10, 2)
+  shippingWidth  Decimal? @db.Decimal(10, 2)
+  shippingHeight Decimal? @db.Decimal(10, 2)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+}
+
+// Main image (isMain = true, position 0) plus up to 5 additional images.
+model ProductImage {
+  id        String  @id @default(uuid())
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+
+  url      String
+  altText  String?
+  isMain   Boolean @default(false)
+  position Int     @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+}
+
+// One optional product video per product.
+model ProductVideo {
+  id        String  @id @default(uuid())
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String  @unique
+
+  url       String
+  createdAt DateTime @default(now())
+}

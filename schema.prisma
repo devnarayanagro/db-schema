@@ -1,0 +1,33 @@
+// ------------------------------------------------------------------
+// Root config file. Prisma reads every *.prisma file in this folder AND
+// its subfolders as ONE combined schema — models/enums can reference
+// each other across files/folders freely (e.g. common/product.prisma
+// referencing PartnerAccount from partners/partner.prisma) with no
+// imports needed.
+//
+// Layout:
+//   prisma/schema/
+//     schema.prisma        <- this file (generator + datasource only)
+//     customer/customer.prisma
+//     partners/partner.prisma
+//     admin/admin.prisma
+//     common/catalog.prisma
+//     common/product.prisma
+//
+// Run all Prisma commands against the folder, not this file directly:
+//   npx prisma generate --schema=./prisma/schema
+//   npx prisma migrate dev --schema=./prisma/schema
+//   npx prisma studio --schema=./prisma/schema
+//
+// Or set it once in package.json so you don't need --schema every time:
+//   "prisma": { "schema": "prisma/schema" }
+// ------------------------------------------------------------------
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
