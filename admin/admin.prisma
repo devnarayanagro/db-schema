@@ -3,6 +3,71 @@
 // Fully independent of customer.prisma / partner.prisma.
 // ==================================================================
 
+enum AdminIpApprovalStatus {
+  pending
+  approved
+  rejected
+}
+
+enum AdminAccessType {
+  dashboard
+  catalog
+  products
+  inventory
+  orders
+  partners
+  customers
+  finance
+  ads
+  banners
+  stats
+  messages
+  notifications
+  reports
+  approvals
+  settings
+  security
+  ipControl
+  systemControl
+}
+
+enum AdminAccessLevel {
+  view
+  manage
+  approve
+  full
+}
+
+enum AdminStatus {
+  active
+  suspended
+  deleted
+}
+
+enum AdminDepartmentType {
+  management
+  catalog
+  operations
+  partners
+  finance
+  marketing
+  support
+  security
+}
+
+model AdminDepartment {
+  id          String               @id @default(uuid())
+  name        String
+  slug        String               @unique
+  type        AdminDepartmentType
+  description String?              @db.VarChar(255)
+  isActive    Boolean              @default(true)
+  admins      AdminAccount[]
+  accessRules AdminDepartmentAccess[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+}
+
 model AdminAccount {
   id            Int       @id
   email         String    @unique
@@ -10,38 +75,73 @@ model AdminAccount {
   password      String? // hashed; null if this admin only signs in via OAuth/SSO
 
   name       String
+  firstName  String?
+  middleName String?
+  lastName   String?
   avatarUrl  String?
   department String? // e.g. "Catalog", "Support", "Finance"
+  departmentId String?
 
+  status       AdminStatus @default(active)
   isSuperAdmin Boolean @default(false)
-  permissions  Json    @default("[]") // MySQL-compatible JSON array of permission keys
+  ipApprovalRequired Boolean @default(false)
 
-  oauthAccounts    AdminOAuthAccount[]
   sessions         AdminSession[]
+  adminDepartment  AdminDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  accessList       AdminAccess[]
+  pushSubscriptions AdminPushSubscription[]
+  security         AdminSecurity?
+  fingerprints     AdminFingerprint[]
+  loginActivities  AdminLoginActivity[]
+  allowedIps       AdminAllowedIp[]
+  ipApprovals      AdminIpApproval[]
   productApprovals ProductApproval[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-// OAuth link table for admins (e.g. Google Workspace SSO), scoped to AdminAccount only.
-model AdminOAuthAccount {
-  id                String  @id @default(uuid())
-  adminId           Int
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
+model AdminAccess {
+  id        String           @id @default(uuid())
+  adminId   Int
+  type      AdminAccessType
+  level     AdminAccessLevel @default(view)
+  isActive  Boolean          @default(true)
+  grantedAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  admin     AdminAccount     @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
-  admin AdminAccount @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  @@unique([adminId, type])
+  @@index([type, level, isActive])
+}
 
-  @@unique([provider, providerAccountId])
+model AdminDepartmentAccess {
+  id           String           @id @default(uuid())
+  departmentId String
+  type         AdminAccessType
+  level        AdminAccessLevel @default(view)
+  isActive     Boolean          @default(true)
+  department   AdminDepartment  @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([departmentId, type])
+  @@index([type, level, isActive])
+}
+
+model AdminPushSubscription {
+  id         String       @id @default(uuid())
+  adminId    Int
+  endpoint   String       @db.Text
+  p256dh     String       @db.Text
+  auth       String       @db.Text
+  userAgent  String?      @db.VarChar(500)
+  deviceType String?      @db.VarChar(30)
+  isActive   Boolean      @default(true)
+  lastSeenAt DateTime     @updatedAt
+  createdAt  DateTime     @default(now())
+  admin      AdminAccount @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@unique([adminId, endpoint(length: 191)])
+  @@index([adminId, isActive])
 }
 
 model AdminSession {
@@ -51,6 +151,108 @@ model AdminSession {
   expires      DateTime
 
   admin AdminAccount @relation(fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+model AdminSecurity {
+  id                  String       @id @default(uuid())
+  adminId             Int          @unique
+  failedLoginAttempts Int          @default(0)
+  lockedUntil         DateTime?
+  admin               AdminAccount @relation(fields: [adminId], references: [id], onDelete: Cascade)
+}
+
+model AdminFingerprint {
+  id          String       @id @default(uuid())
+  adminId     Int
+  fingerprint String       @db.VarChar(255)
+  userAgent   String?      @db.VarChar(500)
+  ipAddress   String?      @db.VarChar(45)
+  forwardedFor String?     @db.VarChar(500)
+  browser     String?      @db.VarChar(80)
+  operatingSystem String?  @db.VarChar(80)
+  deviceType  String?      @db.VarChar(30)
+  language    String?      @db.VarChar(20)
+  timezone    String?      @db.VarChar(80)
+  countryCode String?      @db.VarChar(10)
+  country     String?      @db.VarChar(80)
+  region      String?      @db.VarChar(120)
+  city        String?      @db.VarChar(120)
+  latitude    Decimal?     @db.Decimal(9, 6)
+  longitude   Decimal?     @db.Decimal(9, 6)
+  locationSource String?   @db.VarChar(40)
+  isTrusted   Boolean      @default(true)
+  isActive    Boolean      @default(true)
+  revokedAt   DateTime?
+  revokedReason String?    @db.VarChar(255)
+  firstSeenAt DateTime     @default(now())
+  lastSeenAt  DateTime     @updatedAt
+  createdAt   DateTime     @default(now())
+  admin       AdminAccount @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@unique([adminId, fingerprint])
+  @@index([adminId])
+}
+
+model AdminLoginActivity {
+  id          String       @id @default(uuid())
+  adminId     Int?
+  email       String?
+  fingerprint String?      @db.VarChar(255)
+  status      String       @db.VarChar(30)
+  reason      String?      @db.VarChar(120)
+  userAgent   String?      @db.VarChar(500)
+  ipAddress   String?      @db.VarChar(45)
+  forwardedFor String?     @db.VarChar(500)
+  browser     String?      @db.VarChar(80)
+  operatingSystem String?  @db.VarChar(80)
+  deviceType  String?      @db.VarChar(30)
+  language    String?      @db.VarChar(20)
+  timezone    String?      @db.VarChar(80)
+  countryCode String?      @db.VarChar(10)
+  country     String?      @db.VarChar(80)
+  region      String?      @db.VarChar(120)
+  city        String?      @db.VarChar(120)
+  locationSource String?   @db.VarChar(40)
+  createdAt   DateTime     @default(now())
+  admin       AdminAccount? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([adminId, createdAt])
+  @@index([email, createdAt])
+}
+
+model AdminAllowedIp {
+  id          String       @id @default(uuid())
+  adminId     Int
+  ipAddress   String       @db.VarChar(45)
+  label       String?      @db.VarChar(120)
+  isActive    Boolean      @default(true)
+  lastUsedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  admin       AdminAccount @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@unique([adminId, ipAddress])
+  @@index([ipAddress, isActive])
+}
+
+model AdminIpApproval {
+  id          String                @id @default(uuid())
+  adminId     Int
+  ipAddress   String                @db.VarChar(45)
+  fingerprint String?               @db.VarChar(255)
+  userAgent   String?               @db.VarChar(500)
+  country     String?               @db.VarChar(80)
+  region      String?               @db.VarChar(120)
+  city        String?               @db.VarChar(120)
+  status      AdminIpApprovalStatus @default(pending)
+  note        String?               @db.VarChar(255)
+  requestedAt DateTime              @default(now())
+  reviewedAt  DateTime?
+  expiresAt   DateTime?
+  admin       AdminAccount          @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, status])
+  @@index([ipAddress, status])
 }
 
 // Email verification / magic-link token store, scoped to admins only.
