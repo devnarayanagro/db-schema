@@ -1,0 +1,39 @@
+// Blog posts and guides managed by the content/admin system.
+enum BlogStatus {
+  active
+  inactive
+}
+
+model BlogPost {
+  id              String     @id @default(uuid())
+  title           String
+  slug            String     @unique
+  excerpt         String?    @db.VarChar(500)
+  content         String?    @db.Text
+  category        String
+  imageUrl        String?
+  mobileImageUrl  String?
+  authorName      String?
+  authorAvatarUrl String?
+  authorBio       String?    @db.VarChar(500)
+  readTimeMinutes Int?
+  views           Int        @default(0)
+
+  status      BlogStatus @default(active)
+  isFeatured  Boolean    @default(false)
+  position    Int        @default(0)
+  publishedAt DateTime?
+  startsAt    DateTime?
+  endsAt      DateTime?
+
+  metaTitle       String?
+  metaDescription String? @db.VarChar(160)
+  metaKeywords    Json    @default("[]")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([category, status, publishedAt])
+  @@index([status, isFeatured, position])
+  @@index([startsAt, endsAt])
+}

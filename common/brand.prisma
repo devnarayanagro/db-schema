@@ -1,0 +1,17 @@
+// Brand records used to organize products and merchandising.
+model Brand {
+  id      String  @id @default(uuid())
+  name    String
+  slug    String  @unique
+  logoUrl String?
+
+  isActive Boolean @default(true)
+  position Int     @default(0)
+
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, position])
+}

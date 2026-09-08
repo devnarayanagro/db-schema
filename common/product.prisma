@@ -85,6 +85,8 @@ model Product {
   categoryId     String
   partner        PartnerAccount? @relation(fields: [partnerId], references: [id]) // from partner.prisma
   partnerId      BigInt? // null = listed by admin/platform directly, not a partner
+  brandRecord    Brand?          @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  brandId        String?
   subcategory    String?
   brand          String?
   sku            String?         @unique
@@ -142,6 +144,7 @@ model Product {
 
   @@index([categoryId])
   @@index([partnerId])
+  @@index([brandId])
   @@index([status])
 }
 

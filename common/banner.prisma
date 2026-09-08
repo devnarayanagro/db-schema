@@ -1,0 +1,39 @@
+// Admin-controlled banners used across homepage and merchandising pages.
+enum BannerPlacement {
+  home_promo
+  home_feature
+  categories
+  brands
+  products
+}
+
+enum BannerStatus {
+  active
+  inactive
+}
+
+model Banner {
+  id              String          @id @default(uuid())
+  title           String
+  subtitle        String?         @db.VarChar(500)
+  imageUrl        String?
+  mobileImageUrl  String?
+  backgroundColor String?
+  textColor       String?
+  icon            String?
+  ctaLabel        String?
+  ctaHref         String?
+  placement       BannerPlacement
+  status          BannerStatus    @default(active)
+  position        Int             @default(0)
+  isActive        Boolean         @default(true)
+  startsAt        DateTime?
+  endsAt          DateTime?
+  openInNewTab    Boolean         @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([placement, status, isActive, position])
+  @@index([startsAt, endsAt])
+}
