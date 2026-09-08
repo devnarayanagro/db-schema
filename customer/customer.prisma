@@ -20,9 +20,54 @@ model CustomerAccount {
   oauthAccounts CustomerOAuthAccount[]
   sessions      CustomerSession[]
   addresses     Address[]
+  recentlyViewedProducts RecentlyViewedProduct[]
+  productReviews ProductReview[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+enum ProductReviewStatus {
+  pending
+  approved
+  rejected
+}
+
+model ProductReview {
+  id              String             @id @default(uuid())
+  customerId      BigInt
+  productId       String
+  rating          Int
+  title           String?
+  body            String?            @db.Text
+  images          Json               @default("[]")
+  status          ProductReviewStatus @default(pending)
+  verifiedPurchase Boolean            @default(false)
+  helpfulCount    Int                @default(0)
+  notHelpfulCount Int                @default(0)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  product  Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, productId])
+  @@index([productId, status])
+  @@index([customerId])
+}
+
+model RecentlyViewedProduct {
+  id         String         @id @default(uuid())
+  customerId BigInt?
+  productId  String
+  viewedAt   DateTime       @default(now())
+
+  customer CustomerAccount? @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  product  Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, productId])
+  @@index([customerId, viewedAt])
+  @@index([productId])
 }
 
 // OAuth link table for customers (Google/Apple sign-in etc.), mirrors
