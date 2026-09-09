@@ -20,11 +20,17 @@ model CustomerAccount {
   dob       DateTime?
   gender    String?
 
-  oauthAccounts CustomerOAuthAccount[]
   sessions      CustomerSession[]
   addresses     Address[]
   recentlyViewedProducts RecentlyViewedProduct[]
   productReviews ProductReview[]
+  wishlistItems CustomerWishlistItem[]
+  coupons      CustomerCoupon[]
+  notifications CustomerNotification[]
+  wallet       CustomerWallet?
+  rewardAccount CustomerRewardAccount?
+  supportTickets CustomerSupportTicket[]
+  orders       CustomerOrder[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -73,25 +79,144 @@ model RecentlyViewedProduct {
   @@index([productId])
 }
 
-// OAuth link table for customers (Google/Apple sign-in etc.), mirrors
-// Auth.js's standard "Account" model shape but scoped to CustomerAccount only.
-model CustomerOAuthAccount {
-  id                String  @id @default(uuid())
-  customerId        BigInt
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
+// Products saved by a customer for later purchase.
+model CustomerWishlistItem {
+  id         String   @id @default(uuid())
+  customerId BigInt
+  productId  String
+  createdAt  DateTime @default(now())
+
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  product  Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, productId])
+  @@index([customerId, createdAt])
+}
+
+// Coupons assigned to a customer. Coupon definitions can later be moved to a
+// global catalog while this table remains the customer redemption record.
+model CustomerCoupon {
+  id          String    @id @default(uuid())
+  customerId  BigInt
+  code        String
+  description String?
+  expiresAt   DateTime?
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
 
   customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
 
-  @@unique([provider, providerAccountId])
+  @@unique([customerId, code])
+  @@index([customerId, expiresAt])
+}
+
+model CustomerNotification {
+  id         String    @id @default(uuid())
+  customerId BigInt
+  title      String
+  body       String    @db.Text
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, readAt, createdAt])
+}
+
+model CustomerWallet {
+  id         String   @id @default(uuid())
+  customerId BigInt   @unique
+  balance    Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer     CustomerAccount          @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  transactions CustomerWalletTransaction[]
+}
+
+model CustomerWalletTransaction {
+  id        String   @id @default(uuid())
+  walletId  String
+  amount    Decimal  @db.Decimal(12, 2)
+  type      String   @db.VarChar(30) // credit, debit, refund, adjustment
+  reference String?  @db.VarChar(120)
+  note      String?
+  createdAt DateTime @default(now())
+
+  wallet CustomerWallet @relation(fields: [walletId], references: [id], onDelete: Cascade)
+
+  @@index([walletId, createdAt])
+}
+
+model CustomerRewardAccount {
+  id          String   @id @default(uuid())
+  customerId  BigInt   @unique
+  joinedAt    DateTime?
+  points      Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model CustomerSupportTicket {
+  id         String   @id @default(uuid())
+  customerId BigInt
+  subject    String   @db.VarChar(160)
+  body       String   @db.Text
+  status     String   @default("open") @db.VarChar(30)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, status, createdAt])
+}
+
+enum CustomerOrderStatus {
+  pending
+  processing
+  shipped
+  delivered
+  cancelled
+  returned
+}
+
+model CustomerOrder {
+  id              String             @id @default(uuid())
+  customerId      BigInt
+  status          CustomerOrderStatus @default(pending)
+  paymentMethod   String?            @db.VarChar(40)
+  paymentStatus   String             @default("pending") @db.VarChar(30)
+  subtotal        Decimal            @default(0) @db.Decimal(12, 2)
+  deliveryFee     Decimal            @default(0) @db.Decimal(12, 2)
+  discount        Decimal            @default(0) @db.Decimal(12, 2)
+  total           Decimal            @default(0) @db.Decimal(12, 2)
+  shippingAddress Json
+  placedAt        DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items    CustomerOrderItem[]
+
+  @@index([customerId, placedAt])
+  @@index([customerId, status])
+}
+
+model CustomerOrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  name      String
+  quantity  Int
+  unitPrice Decimal @db.Decimal(12, 2)
+  total     Decimal @db.Decimal(12, 2)
+
+  order   CustomerOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
 }
 
 model CustomerSession {

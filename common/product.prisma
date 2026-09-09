@@ -139,6 +139,8 @@ model Product {
   video        ProductVideo?
   approvals    ProductApproval[]
   recentlyViewedBy RecentlyViewedProduct[]
+  wishlistItems CustomerWishlistItem[]
+  orderItems   CustomerOrderItem[]
   stats        ProductStats[]
   reviews      ProductReview[]
   reviewStats  ProductReviewStats[]
