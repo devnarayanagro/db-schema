@@ -13,6 +13,9 @@ model CustomerAccount {
   emailVerified DateTime?
 
   name      String?
+  firstName String?
+  middleName String?
+  lastName  String?
   avatarUrl String?
   dob       DateTime?
   gender    String?
