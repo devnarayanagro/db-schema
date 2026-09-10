@@ -24,7 +24,9 @@ model CustomerAccount {
   addresses     Address[]
   recentlyViewedProducts RecentlyViewedProduct[]
   productReviews ProductReview[]
+  reviewVotes ProductReviewVote[]
   wishlistItems CustomerWishlistItem[]
+  cart          CustomerCart?
   coupons      CustomerCoupon[]
   notifications CustomerNotification[]
   wallet       CustomerWallet?
@@ -59,10 +61,54 @@ model ProductReview {
 
   customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
   product  Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  categoryRatings ProductReviewCategoryRating[]
+  votes ProductReviewVote[]
 
   @@unique([customerId, productId])
   @@index([productId, status])
   @@index([customerId])
+}
+
+enum ProductReviewRatingCategory {
+  effectiveness
+  value_for_money
+  ease_of_application
+  packaging_quality
+  delivery_experience
+}
+
+model ProductReviewCategoryRating {
+  id       String                       @id @default(uuid())
+  reviewId String
+  category ProductReviewRatingCategory
+  rating   Int
+
+  review ProductReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewId, category])
+  @@index([category])
+}
+
+enum ReviewVoteType {
+  helpful
+  not_helpful
+}
+
+model ProductReviewVote {
+  id         String        @id @default(uuid())
+  customerId BigInt
+  productId  String
+  reviewId   String
+  vote       ReviewVoteType
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  review   ProductReview   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, reviewId])
+  @@index([productId])
+  @@index([reviewId])
 }
 
 model RecentlyViewedProduct {
