@@ -27,6 +27,7 @@ model CustomerAccount {
   reviewVotes ProductReviewVote[]
   wishlistItems CustomerWishlistItem[]
   cart          CustomerCart?
+  checkouts     CustomerCheckout[]
   coupons      CustomerCoupon[]
   notifications CustomerNotification[]
   wallet       CustomerWallet?
@@ -139,21 +140,35 @@ model CustomerWishlistItem {
   @@index([customerId, createdAt])
 }
 
-// Coupons assigned to a customer. Coupon definitions can later be moved to a
-// global catalog while this table remains the customer redemption record.
+enum CouponRedemptionStatus {
+  active
+  used
+  expired
+  cancelled
+}
+
+// Coupons assigned to a customer with per-user redemption and usage tracking.
 model CustomerCoupon {
-  id          String    @id @default(uuid())
-  customerId  BigInt
-  code        String
-  description String?
-  expiresAt   DateTime?
-  usedAt      DateTime?
-  createdAt   DateTime  @default(now())
+  id           String                  @id @default(uuid())
+  customerId   BigInt
+  couponId     String?
+  code         String                  @db.VarChar(64)
+  description  String?
+  status       CouponRedemptionStatus  @default(active)
+  expiresAt    DateTime?
+  redeemedAt   DateTime?
+  usedAt       DateTime?
+  amountSaved  Decimal?                @db.Decimal(12, 2)
+  orderId      String?
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
 
   customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  coupon   Coupon?          @relation(fields: [couponId], references: [id], onDelete: SetNull)
 
   @@unique([customerId, code])
-  @@index([customerId, expiresAt])
+  @@index([customerId, status, expiresAt])
+  @@index([couponId, status])
 }
 
 model CustomerNotification {

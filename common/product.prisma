@@ -150,6 +150,7 @@ model Product {
   stats        ProductStats[]
   reviews      ProductReview[]
   reviewStats  ProductReviewStats[]
+  couponTargets CouponProduct[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -1,0 +1,97 @@
+// Common coupon definitions used across checkout, catalog, and marketing flows.
+// Customer-specific redemption records remain in customer.prisma.
+enum CouponDiscountType {
+  percent
+  fixed
+}
+
+enum CouponStatus {
+  draft
+  active
+  paused
+  expired
+  disabled
+}
+
+enum CouponTargetScope {
+  all
+  product
+  category
+  brand
+}
+
+enum CouponAudience {
+  everyone
+  new_customers
+  returning_customers
+  members_only
+}
+
+model Coupon {
+  id                   String             @id @default(uuid())
+  code                 String             @unique @db.VarChar(64)
+  name                 String
+  bannerUrl            String?
+  status               CouponStatus       @default(draft)
+  audience             CouponAudience     @default(everyone)
+  discountType         CouponDiscountType @default(percent)
+  discountValue        Decimal            @db.Decimal(12, 2)
+  maxDiscountAmount    Decimal?           @db.Decimal(12, 2)
+  minOrderAmount       Decimal?           @db.Decimal(12, 2)
+  maxOrderAmount       Decimal?           @db.Decimal(12, 2)
+  maxUses              Int?
+  maxUsesPerCustomer   Int?               @default(1)
+  usedCount            Int                @default(0)
+  isPublic             Boolean            @default(true)
+  isOneTimeUse         Boolean            @default(false)
+  appliesTo            CouponTargetScope  @default(all)
+  allowFreeShipping    Boolean            @default(false)
+  startsAt             DateTime?
+  expiresAt            DateTime?
+  createdBy            String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  customerCoupons      CustomerCoupon[]
+  products             CouponProduct[]
+  categories           CouponCategory[]
+  brands               CouponBrand[]
+
+  @@index([status, expiresAt])
+  @@index([audience, status])
+  @@index([appliesTo, status])
+  @@index([startsAt, expiresAt])
+}
+
+model CouponProduct {
+  couponId  String
+  productId String
+
+  coupon  Coupon  @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([couponId, productId])
+  @@index([productId])
+}
+
+model CouponCategory {
+  couponId    String
+  categoryId  String
+
+  coupon      Coupon          @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  category    ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@id([couponId, categoryId])
+  @@index([categoryId])
+}
+
+model CouponBrand {
+  couponId String
+  brandId  String
+
+  coupon Coupon @relation(fields: [couponId], references: [id], onDelete: Cascade)
+  brand  Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@id([couponId, brandId])
+  @@index([brandId])
+}

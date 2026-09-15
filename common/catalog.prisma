@@ -21,6 +21,7 @@ model ProductCategory {
   position Int     @default(0)
 
   products Product[] // Product model lives in product.prisma
+  couponTargets CouponCategory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -5,8 +5,41 @@ model CustomerCart {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  customer CustomerAccount  @relation(fields: [customerId], references: [id], onDelete: Cascade)
-  items    CustomerCartItem[]
+  customer   CustomerAccount  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items      CustomerCartItem[]
+  checkouts  CustomerCheckout[]
+}
+
+enum CustomerCheckoutStatus {
+  draft
+  pending_payment
+  confirmed
+  expired
+  cancelled
+}
+
+model CustomerCheckout {
+  id              String                  @id @default(uuid())
+  customerId      BigInt
+  cartId          String
+  status          CustomerCheckoutStatus  @default(draft)
+  paymentMethod   String?                 @db.VarChar(40)
+  subtotal        Decimal                 @default(0) @db.Decimal(12, 2)
+  deliveryFee     Decimal                 @default(0) @db.Decimal(12, 2)
+  discount        Decimal                 @default(0) @db.Decimal(12, 2)
+  total           Decimal                 @default(0) @db.Decimal(12, 2)
+  shippingAddress Json?
+  expiresAt       DateTime                @default(now())
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  cart     CustomerCart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, createdAt])
+  @@index([customerId, status])
+  @@index([cartId])
+  @@index([expiresAt])
 }
 
 model CustomerCartItem {
