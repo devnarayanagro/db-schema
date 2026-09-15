@@ -35,6 +35,7 @@ model CustomerCheckout {
 
   customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
   cart     CustomerCart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  order    CustomerOrder?
 
   @@index([customerId, createdAt])
   @@index([customerId, status])

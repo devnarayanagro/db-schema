@@ -165,10 +165,12 @@ model CustomerCoupon {
 
   customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
   coupon   Coupon?          @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  order    CustomerOrder?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
 
   @@unique([customerId, code])
   @@index([customerId, status, expiresAt])
   @@index([couponId, status])
+  @@index([orderId])
 }
 
 model CustomerNotification {
@@ -244,34 +246,66 @@ enum CustomerOrderStatus {
 }
 
 model CustomerOrder {
-  id              String             @id @default(uuid())
-  customerId      BigInt
-  status          CustomerOrderStatus @default(pending)
-  paymentMethod   String?            @db.VarChar(40)
-  paymentStatus   String             @default("pending") @db.VarChar(30)
-  subtotal        Decimal            @default(0) @db.Decimal(12, 2)
-  deliveryFee     Decimal            @default(0) @db.Decimal(12, 2)
-  discount        Decimal            @default(0) @db.Decimal(12, 2)
-  total           Decimal            @default(0) @db.Decimal(12, 2)
-  shippingAddress Json
-  placedAt        DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
+  id                   String              @id @default(uuid())
+  orderNumber          String              @unique
+  customerId           BigInt
+  checkoutId           String?             @unique
+  couponId             String?
+  status               CustomerOrderStatus @default(pending)
+  paymentMethod        String?             @db.VarChar(40)
+  paymentStatus        String              @default("pending") @db.VarChar(30)
+  paymentProvider      String?             @db.VarChar(40)
+  paymentTransactionId String?             @db.VarChar(160)
+  paymentFailureReason String?             @db.Text
+  currency             String              @default("INR") @db.VarChar(3)
+  subtotal             Decimal             @default(0) @db.Decimal(12, 2)
+  deliveryFee          Decimal             @default(0) @db.Decimal(12, 2)
+  discount             Decimal             @default(0) @db.Decimal(12, 2)
+  couponCode           String?             @db.VarChar(64)
+  couponDiscount       Decimal             @default(0) @db.Decimal(12, 2)
+  total                Decimal             @default(0) @db.Decimal(12, 2)
+  shippingAddress      Json
+  carrier              String?             @db.VarChar(80)
+  trackingNumber       String?             @db.VarChar(120)
+  estimatedDeliveryAt  DateTime?
+  paidAt               DateTime?
+  shippedAt            DateTime?
+  deliveredAt          DateTime?
+  cancelledAt          DateTime?
+  cancellationReason   String?             @db.Text
+  returnedAt           DateTime?
+  returnReason         String?             @db.Text
+  returnStatus         String?             @db.VarChar(30)
+  invoiceNumber        String?             @unique @db.VarChar(80)
+  invoiceUrl           String?             @db.Text
+  placedAt             DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
 
   customer CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  checkout CustomerCheckout? @relation(fields: [checkoutId], references: [id], onDelete: SetNull)
+  coupon   Coupon?            @relation(fields: [couponId], references: [id], onDelete: SetNull)
   items    CustomerOrderItem[]
+  couponRedemptions CustomerCoupon[]
 
   @@index([customerId, placedAt])
   @@index([customerId, status])
+  @@index([trackingNumber])
+  @@index([paymentTransactionId])
 }
 
 model CustomerOrderItem {
-  id        String  @id @default(uuid())
-  orderId   String
-  productId String
-  name      String
-  quantity  Int
-  unitPrice Decimal @db.Decimal(12, 2)
-  total     Decimal @db.Decimal(12, 2)
+  id                  String   @id @default(uuid())
+  orderId             String
+  productId           String
+  name                String
+  brand               String?
+  category            String?
+  unit                String?
+  imageUrl            String?
+  quantity            Int
+  maximumRetailPrice  Decimal? @db.Decimal(12, 2)
+  unitPrice           Decimal  @db.Decimal(12, 2)
+  total               Decimal  @db.Decimal(12, 2)
 
   order   CustomerOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product       @relation(fields: [productId], references: [id], onDelete: Restrict)

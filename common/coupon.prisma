@@ -53,6 +53,7 @@ model Coupon {
   updatedAt            DateTime           @updatedAt
 
   customerCoupons      CustomerCoupon[]
+  orders               CustomerOrder[]
   products             CouponProduct[]
   categories           CouponCategory[]
   brands               CouponBrand[]
