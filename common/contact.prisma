@@ -1,5 +1,6 @@
 model ContactMessage {
   id        String   @id @default(uuid())
+  // Contact form payload: name, email, optional phone, and message.
   name      String   @db.VarChar(120)
   email     String   @db.VarChar(254)
   phone     String?  @db.VarChar(40)

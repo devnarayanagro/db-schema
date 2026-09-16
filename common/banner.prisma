@@ -23,6 +23,7 @@ model Banner {
   icon            String?
   ctaLabel        String?
   ctaHref         String?
+  // Pages select banners by placement and active date/status, not by hardcoded id.
   placement       BannerPlacement
   status          BannerStatus    @default(active)
   position        Int             @default(0)

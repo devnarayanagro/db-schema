@@ -47,14 +47,15 @@ enum ProductReviewStatus {
 
 model ProductReview {
   id              String             @id @default(uuid())
+  // Review API payload identifies the product and sends rating, title, body, and categoryRatings.
   customerId      BigInt
   productId       String
   rating          Int
   title           String?
   body            String?            @db.Text
   images          Json               @default("[]")
-  status          ProductReviewStatus @default(pending)
-  verifiedPurchase Boolean            @default(false)
+  status          ProductReviewStatus @default(pending) // Public review queries require approved.
+  verifiedPurchase Boolean            @default(false) // Set from purchase eligibility, never from the client.
   helpfulCount    Int                @default(0)
   notHelpfulCount Int                @default(0)
   createdAt       DateTime           @default(now())
@@ -248,6 +249,7 @@ enum CustomerOrderStatus {
 model CustomerOrder {
   id                   String              @id @default(uuid())
   orderNumber          String              @unique
+  // Order pages read this record by id/orderNumber and scope it to the session customerId.
   customerId           BigInt
   checkoutId           String?             @unique
   couponId             String?
@@ -264,7 +266,7 @@ model CustomerOrder {
   couponCode           String?             @db.VarChar(64)
   couponDiscount       Decimal             @default(0) @db.Decimal(12, 2)
   total                Decimal             @default(0) @db.Decimal(12, 2)
-  shippingAddress      Json
+  shippingAddress      Json // Snapshot captured at order creation; do not read the live address later.
   carrier              String?             @db.VarChar(80)
   trackingNumber       String?             @db.VarChar(120)
   estimatedDeliveryAt  DateTime?
@@ -296,6 +298,7 @@ model CustomerOrder {
 model CustomerOrderItem {
   id                  String   @id @default(uuid())
   orderId             String
+  // Review eligibility checks this productId against an order owned by the session customer.
   productId           String
   name                String
   brand               String?
@@ -350,6 +353,7 @@ model CustomerPhoneOtp {
 model Address {
   id         String          @id @default(uuid())
   customer   CustomerAccount @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  // Address form sends label, line1/line2, city, state, postalCode, phone, and isDefault.
   customerId BigInt
 
   label      String? // "Home", "Work", etc.

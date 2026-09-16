@@ -1,11 +1,21 @@
+// Values used by the public legal routes and the admin legal-document form.
+enum LegalDocumentType {
+  terms
+  privacy
+  returns
+  shipping
+}
+
 model LegalDocument {
   id          String   @id @default(uuid())
-  type        String   @unique @db.VarChar(40)
+  // Route key used by legal pages: terms, privacy, returns, or shipping.
+  type        LegalDocumentType @unique
   eyebrow     String   @db.VarChar(120)
   title       String   @db.VarChar(200)
   intro       String   @db.Text
+  // Sanitized HTML rendered by the legal page after the server lookup.
   contentHtml String   @db.Text
-  published   Boolean  @default(true)
+  published   Boolean  @default(true) // Only published documents are public.
   updatedAt   DateTime @updatedAt
   createdAt   DateTime @default(now())
 

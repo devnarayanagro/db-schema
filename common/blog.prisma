@@ -7,6 +7,7 @@ enum BlogStatus {
 model BlogPost {
   id              String     @id @default(uuid())
   title           String
+  // Public blog URLs use this slug; never build the detail URL from the id.
   slug            String     @unique
   excerpt         String?    @db.VarChar(500)
   content         String?    @db.Text
@@ -19,7 +20,7 @@ model BlogPost {
   readTimeMinutes Int?
   views           Int        @default(0)
 
-  status      BlogStatus @default(active)
+  status      BlogStatus @default(active) // Public pages query active posts only.
   isFeatured  Boolean    @default(false)
   position    Int        @default(0)
   publishedAt DateTime?

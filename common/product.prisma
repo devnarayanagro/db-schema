@@ -80,6 +80,7 @@ enum ProductUnit {
 model Product {
   id             String          @id @default(uuid())
   name           String
+  // Product detail, review, and catalog routes use the slug in public URLs.
   slug           String          @unique
   category       ProductCategory @relation(fields: [categoryId], references: [id]) // from catalog.prisma
   categoryId     String
@@ -91,8 +92,8 @@ model Product {
   brand          String?
   sku            String?         @unique
   hsnCode        String?
-  status         ProductStatus   @default(draft)
-  approvalStatus ApprovalStatus  @default(pending)
+  status         ProductStatus   @default(draft) // Public catalog pages require active.
+  approvalStatus ApprovalStatus  @default(pending) // Public catalog pages require approved.
   badges         ProductBadge[] // from catalog.prisma — form UI is single-select but relation supports many
   categoryRatingStats ProductReviewCategoryStats[]
 
@@ -139,8 +140,8 @@ model Product {
   metaDescription String? @db.VarChar(160)
   metaKeywords    Json    @default("[]") // form stores as comma-separated string; split/join on save/load
 
-  pricingTiers PricingTier[]
-  images       ProductImage[]
+  pricingTiers PricingTier[] // Cart payloads send pricingTierId and quantity.
+  images       ProductImage[] // Product cards/pages use the main image URL.
   video        ProductVideo?
   approvals    ProductApproval[]
   recentlyViewedBy RecentlyViewedProduct[]
