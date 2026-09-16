@@ -1,0 +1,81 @@
+// Shared site controls used by the footer and other common layout areas.
+enum SocialType {
+  facebook
+  instagram
+  youtube
+  whatsapp
+  linkedin
+  x
+  telegram
+  pinterest
+  threads
+  snapchat
+  website
+}
+
+enum AppStorePlatform {
+  google_play
+  apple_app_store
+}
+
+enum AppStoreStatus {
+  active
+  coming_soon
+  disabled
+}
+
+// Main footer identity, contact details, and legal footer text.
+model Settings {
+  id            String  @id @default(uuid())
+  footerdescription   String? @db.Text
+  phone         String? @db.VarChar(40)
+  email         String? @db.VarChar(254)
+  addressLine1  String?
+  addressLine2  String?
+  city          String?
+  state         String?
+  postalCode    String?
+  supportHours  String?
+  copyrightText String?
+  bottomText    String?
+  isEnabled     Boolean @default(true)
+
+  socialLinks    SocialLink[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Social profile links shown in the footer.
+model SocialLink {
+  id             String   @id @default(uuid())
+  settingsId     String
+  type           SocialType
+  url            String           @db.VarChar(500)
+  label          String?          @db.VarChar(120)
+  position       Int              @default(0)
+  isEnabled      Boolean          @default(true)
+
+  settings       Settings @relation(fields: [settingsId], references: [id], onDelete: Cascade)
+
+  @@unique([settingsId, type])
+  @@index([settingsId, isEnabled, position])
+}
+
+// App download links shown in common site areas such as the footer.
+model AppStoreLink {
+  id        String          @id @default(uuid())
+  platform  AppStorePlatform
+  status    AppStoreStatus  @default(coming_soon)
+  url       String?         @db.VarChar(500)
+  label     String?         @db.VarChar(120)
+  imageUrl  String?
+  position  Int             @default(0)
+  isEnabled Boolean         @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([platform])
+  @@index([status, isEnabled, position])
+}
+

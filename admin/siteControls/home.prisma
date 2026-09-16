@@ -1,0 +1,86 @@
+// Multiple rows can be configured for the homepage image slider.
+model HomeHeroSlide {
+  id       String @id @default(uuid())
+  imageUrl String
+  position Int    @default(0)
+
+  @@unique([position])
+}
+
+enum HomeVideoProvider {
+  youtube
+}
+
+enum HomeVideoVisibility {
+  always
+  one_time
+  occasionally
+}
+
+enum HomeVideoStatus {
+  enabled
+  disabled
+}
+
+// Homepage video links and their display/player controls.
+model HomeVideo {
+  id              String              @id @default(uuid())
+  provider        HomeVideoProvider   @default(youtube)
+  videoUrl        String              @db.VarChar(500)
+  isDisplayed     Boolean             @default(true)
+  controlsEnabled Boolean             @default(true)
+  visibility      HomeVideoVisibility @default(always)
+  status          HomeVideoStatus     @default(enabled)
+  position        Int                 @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, isDisplayed, position])
+  @@index([visibility])
+}
+
+enum HomePromoBannerStatus {
+  enabled
+  disabled
+}
+
+// Homepage promo cards such as fertilizers, pesticides, and seeds.
+model HomePromoBanner {
+  id            String                 @id @default(uuid())
+  status        HomePromoBannerStatus @default(enabled)
+  position      Int                    @default(0)
+  title         String                 @db.VarChar(160)
+  subtitle      String?                @db.VarChar(500)
+  buttonText    String?                @db.VarChar(80)
+  buttonLink    String?                @db.VarChar(500)
+  backgroundColor String?              @db.VarChar(30)
+  imageUrl      String?
+  icon          String?                @db.VarChar(80)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([position])
+  @@index([status, position])
+}
+
+// Homepage feature cards such as farmer support, delivery, and expert advice.
+model HomeFeatureBanner {
+  id              String                 @id @default(uuid())
+  status          HomePromoBannerStatus @default(enabled)
+  position        Int                    @default(0)
+  title           String                 @db.VarChar(160)
+  subtitle        String?                @db.VarChar(500)
+  buttonText      String?                @db.VarChar(80)
+  buttonLink      String?                @db.VarChar(500)
+  backgroundColor String?                @db.VarChar(30)
+  imageUrl        String?
+  icon            String?                @db.VarChar(80)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([position])
+  @@index([status, position])
+}
