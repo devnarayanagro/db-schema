@@ -257,6 +257,8 @@ model CustomerOrder {
   paymentMethod        String?             @db.VarChar(40)
   paymentStatus        String              @default("pending") @db.VarChar(30)
   paymentProvider      String?             @db.VarChar(40)
+  paymentEnvironment   String?             @db.VarChar(10)
+  paymentGatewayOrderId String?            @db.VarChar(160)
   paymentTransactionId String?             @db.VarChar(160)
   paymentFailureReason String?             @db.Text
   currency             String              @default("INR") @db.VarChar(3)
