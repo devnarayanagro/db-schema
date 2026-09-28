@@ -1,0 +1,8 @@
+// Single configurable banner displayed at the top of the orders page.
+model OrdersPageBanner {
+	id        String   @id @default("orders-page") @db.VarChar(40)
+	imageUrl  String?  @db.Text
+	altText   String?  @db.VarChar(160)
+	isEnabled Boolean  @default(true)
+	updatedAt DateTime @updatedAt
+}
